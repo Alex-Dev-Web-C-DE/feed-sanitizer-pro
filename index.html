@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">FeedSanitizer Pro — E-commerce Feed & CSV Cleaner</title>
+    <meta name="description" content="Clean, deduplicate, and convert product catalogs, XML, and CSV feeds 100% locally in your browser.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+    </script>
+    <!-- SheetJS for Excel/CSV/XML handling -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- JSZip for Batch Processing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body class="bg-slate-900 dark:bg-slate-900 text-slate-100 min-h-screen flex flex-col selection:bg-emerald-500 selection:text-white transition-colors duration-200">
+
+    <!-- Header -->
+    <header class="border-b border-slate-800 px-6 py-4 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-white shadow-lg shadow-emerald-600/30">F</div>
+                <h1 class="text-lg font-bold tracking-wider text-white">FeedSanitizer<span class="text-emerald-400">Pro</span></h1>
+            </div>
+            <div class="flex items-center space-x-3">
+                <span class="text-xs bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 px-3 py-1.5 rounded-full hidden sm:flex items-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>E-commerce Edition / 100% Client-Side</span>
+                </span>
+                <button onclick="toggleTheme()" class="p-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition" title="Toggle Theme">
+                    <svg id="theme-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto p-6 w-full grid grid-cols-1 md:grid-cols-4 gap-6">
+        
+        <!-- Sidebar Modules Navigation -->
+        <div class="space-y-2 md:col-span-1">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-1">Feed Utilities</h2>
+            <button onclick="switchModule(1)" id="btn-1" class="w-full text-left px-4 py-3 rounded-xl bg-emerald-600 text-white font-medium transition shadow-lg shadow-emerald-600/20 flex items-center space-x-3">
+                <span class="text-xs bg-emerald-800 w-5 h-5 rounded-md flex items-center justify-center">1</span>
+                <span class="truncate">Product Feed Cleaner</span>
+            </button>
+            <button onclick="switchModule(2)" id="btn-2" class="w-full text-left px-4 py-3 rounded-xl bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-white transition flex items-center space-x-3">
+                <span class="text-xs bg-slate-700 w-5 h-5 rounded-md flex items-center justify-center">2</span>
+                <span class="truncate">SKU Catalog Deduplicator</span>
+            </button>
+            <button onclick="switchModule(3)" id="btn-3" class="w-full text-left px-4 py-3 rounded-xl bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-white transition flex items-center space-x-3">
+                <span class="text-xs bg-slate-700 w-5 h-5 rounded-md flex items-center justify-center">3</span>
+                <span class="truncate">Multi-Format Converter</span>
+            </button>
+
+            <!-- History Section -->
+            <div class="mt-6 pt-4 border-t border-slate-800">
+                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">Session History</h3>
+                <div id="history-box" class="bg-slate-950 border border-slate-800/80 rounded-xl p-3 text-xs text-slate-400 space-y-1.5 max-h-36 overflow-y-auto font-mono">
+                    <span class="text-slate-600 italic">No operations yet</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Working Area -->
+        <div class="md:col-span-3 bg-slate-950 border border-slate-800/80 rounded-2xl p-6 shadow-2xl flex flex-col justify-between">
+            
+            <div>
+                <!-- Module Header -->
+                <div class="mb-6 pb-4 border-b border-slate-800/60 flex justify-between items-start">
+                    <div>
+                        <h2 id="mod-title" class="text-2xl font-bold text-white">Product Feed Cleaner</h2>
+                        <p id="mod-desc" class="text-slate-400 text-sm mt-1">Detect and fix broken rows, formatting glitches, or malformed tags in e-commerce catalogs.</p>
+                    </div>
+                    <button onclick="loadSampleData()" class="text-xs bg-slate-800 hover:bg-slate-700 text-emerald-300 px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center space-x-1">
+                        <span>⚡ Load Sample Feed</span>
+                    </button>
+                </div>
+
+                <!-- Advanced Options Toolbar -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Target Output Format</label>
+                        <select id="opt-format" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <option value="csv">CSV (Standard Spreadsheets)</option>
+                            <option value="xlsx">Excel (.xlsx)</option>
+                            <option value="json">JSON (API Feed)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Encoding Fix</label>
+                        <select id="opt-encoding" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <option value="utf-8">UTF-8 (Standard Shopify/Amazon)</option>
+                            <option value="latin1">ISO-8859-1 (Legacy Feeds)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Drag & Drop Box -->
+                <div id="drop-zone" 
+                     class="border-2 border-dashed border-slate-700/80 hover:border-emerald-500 transition rounded-xl p-8 text-center cursor-pointer bg-slate-900/30 group relative"
+                     ondragover="handleDragOver(event)" 
+                     ondragleave="handleDragLeave(event)" 
+                     ondrop="handleDrop(event)" 
+                     onclick="document.getElementById('fileInput').click()">
+                    <svg class="w-12 h-12 mx-auto text-slate-500 group-hover:text-emerald-400 transition mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                    <p class="text-sm font-medium text-slate-300 group-hover:text-white transition" id="file-label">Click here or drag & drop product catalogs (CSV, XML, Excel)</p>
+                    <p class="text-xs text-slate-500 mt-1">Processed locally in browser memory (Batch ready)</p>
+                    <input type="file" id="fileInput" class="hidden" multiple accept=".csv,.txt,.tsv,.xml,.xlsx,.xls" onchange="handleFileInput(this)">
+                </div>
+
+                <!-- Result & Preview Area -->
+                <div id="result-area" class="mt-6 hidden space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Live Preview & Metrics</h3>
+                        <span id="metrics-badge" class="text-xs bg-emerald-950 text-emerald-300 px-2.5 py-1 rounded-md border border-emerald-800/50">Ready</span>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden max-h-48 overflow-y-auto">
+                        <table id="preview-table" class="w-full text-left border-collapse text-xs">
+                            <thead id="preview-head" class="bg-slate-950 text-slate-400 border-b border-slate-800 sticky top-0"></thead>
+                            <tbody id="preview-body" class="divide-y divide-slate-800/60 font-mono text-slate-300"></tbody>
+                        </table>
+                    </div>
+                    <div id="log" class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs font-mono text-emerald-400 h-20 overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Working Area Footer -->
+            <div class="mt-8 pt-4 border-t border-slate-800/80 flex justify-between items-center text-xs text-slate-500">
+                <span>FeedSanitizer Engine v1.0</span>
+                <button id="process-btn" onclick="currentAction()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-medium transition shadow-lg shadow-emerald-600/25 disabled:opacity-40 disabled:cursor-not-allowed" disabled>Sanitize Feed</button>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Logic Script -->
+    <script>
+        let currentModuleId = 1;
+        let selectedFiles = [];
+        let processedResults = [];
+        let historyLog = [];
+
+        const modulesData = {
+            1: { title: "Product Feed Cleaner", desc: "Detect and fix broken rows, formatting glitches, or malformed tags in e-commerce catalogs.", btnText: "Sanitize Feed" },
+            2: { title: "SKU Catalog Deduplicator", desc: "Scan inventory and automatically remove duplicate SKU entries or conflicting rows.", btnText: "Deduplicate Catalog" },
+            3: { title: "Multi-Format Catalog Converter", desc: "Instantly convert product data files between CSV, Excel, and JSON formats.", btnText: "Convert Catalog" }
+        };
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        function switchModule(id) {
+            currentModuleId = id;
+            for(let i=1; i<=3; i++) {
+                const btn = document.getElementById(`btn-${i}`);
+                if(i === id) {
+                    btn.className = "w-full text-left px-4 py-3 rounded-xl bg-emerald-600 text-white font-medium transition shadow-lg shadow-emerald-600/20 flex items-center space-x-3";
+                } else {
+                    btn.className = "w-full text-left px-4 py-3 rounded-xl bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-white transition flex items-center space-x-3";
+                }
+            }
+            const mod = modulesData[id];
+            document.getElementById('mod-title').innerText = mod.title;
+            document.getElementById('mod-desc').innerText = mod.desc;
+            document.getElementById('result-area').classList.add('hidden');
+            selectedFiles = []; processedResults = [];
+            document.getElementById('file-label').innerText = "Click here or drag & drop product catalogs";
+            const btn = document.getElementById('process-btn');
+            btn.disabled = true; btn.innerText = mod.btnText; btn.onclick = currentAction;
+        }
+
+        function handleDragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('border-emerald-500', 'bg-emerald-950/20'); }
+        function handleDragLeave(e) { e.preventDefault(); document.getElementById('drop-zone').classList.remove('border-emerald-500', 'bg-emerald-950/20'); }
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById('drop-zone').classList.remove('border-emerald-500', 'bg-emerald-950/20');
+            if(e.dataTransfer.files && e.dataTransfer.files.length > 0) processFileObjects(e.dataTransfer.files);
+        }
+        function handleFileInput(input) {
+            if(input.files && input.files.length > 0) processFileObjects(input.files);
+        }
+
+        function processFileObjects(files) {
+            selectedFiles = Array.from(files);
+            document.getElementById('file-label').innerHTML = `Selected files: <b class="text-emerald-400">${selectedFiles.length} file(s)</b>`;
+            document.getElementById('process-btn').disabled = false;
+            document.getElementById('result-area').classList.remove('hidden');
+            document.getElementById('log').innerHTML = `> Loaded ${selectedFiles.length} catalog file(s) into RAM.<br>> Ready for execution.`;
+        }
+
+        function loadSampleData() {
+            let sampleText = "SKU,Product_Title,Price,Stock,Category\nSKU-001,Wireless Headphones,59.99,120,Electronics\nSKU-002,Smart Watch,129.99,45,Electronics\nSKU-001,Wireless Headphones (Duplicate),59.99,0,Electronics\nSKU-003,Running Shoes,89.99,200,Sports";
+            const blob = new Blob([sampleText], { type: 'text/csv' });
+            const sampleFile = new File([blob], "sample_product_feed.csv", { type: "text/csv" });
+            processFileObjects([sampleFile]);
+            document.getElementById('log').innerHTML += `<br>> <span class="text-emerald-400">Sample e-commerce feed loaded!</span>`;
+        }
+
+        async function currentAction() {
+            if(selectedFiles.length === 0) return;
+            processedResults = [];
+            const format = document.getElementById('opt-format').value;
+
+            for(let file of selectedFiles) {
+                let csvText = "";
+                if(file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                    const data = await file.arrayBuffer();
+                    const workbook = XLSX.read(data);
+                    csvText = XLSX.utils.sheet_to_csv(workbook.Sheets[workbook.SheetNames[0]]);
+                } else if(file.name.endsWith('.xml')) {
+                    const raw = await readFileAsText(file);
+                    csvText = "XML_Node_Dump\n" + raw.replace(/(\r\n|\n|\r)/gm, " ").substring(0, 1000);
+                } else {
+                    csvText = await readFileAsText(file);
+                }
+
+                let lines = csvText.split(/\r\n|\n/);
+                let processedLines = [];
+
+                if(currentModuleId === 1) {
+                    // Cleaner: remove empty lines, fix spacing
+                    lines.forEach(l => { if(l.trim()) processedLines.push(l.trim().replace(/\s+/g, ' ')); });
+                } else if(currentModuleId === 2) {
+                    // Deduplicator based on SKU (assuming first column is SKU)
+                    let seen = new Set();
+                    lines.forEach((l, idx) => {
+                        if(idx === 0) { processedLines.push(l); return; }
+                        let sku = l.split(',')[0].replace(/["']/g, '').trim();
+                        if(sku && !seen.has(sku)) {
+                            seen.add(sku);
+                            processedLines.push(l);
+                        }
+                    });
+                } else {
+                    // Converter
+                    processedLines = lines.filter(l => l.trim());
+                }
+
+                finalizeResult(file.name, processedLines.join('\n'), format);
+            }
+
+            if(processedResults.length > 0) {
+                renderPreview(processedResults[0].content, format);
+                document.getElementById('log').innerHTML += `<br>> Successfully sanitized <b>${processedResults.length}</b> file(s).<br>> <span class="text-emerald-400">Ready for download!</span>`;
+                addHistoryEntry(modulesData[currentModuleId].title, selectedFiles.length);
+                prepareDownload();
+            }
+        }
+
+        function readFileAsText(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.readAsText(file);
+            });
+        }
+
+        function finalizeResult(filename, contentLines, format) {
+            let ext = format === 'json' ? '.json' : (format === 'xlsx' ? '.xlsx' : '.csv');
+            let finalName = filename.replace(/\.[^/.]+$/, "") + "_sanitized" + ext;
+            let formattedContent = contentLines;
+
+            if(format === 'json') {
+                const rows = contentLines.split(/\r\n|\n/);
+                let headers = rows[0] ? rows[0].split(',').map(h => h.replace(/["']/g, '').trim()) : [];
+                let jsonArr = [];
+                for(let i = 1; i < rows.length; i++) {
+                    let vals = rows[i].split(',');
+                    let obj = {};
+                    headers.forEach((h, idx) => { obj[h || `col_${idx+1}`] = vals[idx] ? vals[idx].replace(/["']/g, '').trim() : ""; });
+                    jsonArr.push(obj);
+                }
+                formattedContent = JSON.stringify(jsonArr, null, 2);
+            }
+            processedResults.push({ name: finalName, content: formattedContent, raw: contentLines });
+        }
+
+        function renderPreview(content, format) {
+            const head = document.getElementById('preview-head');
+            const body = document.getElementById('preview-body');
+            head.innerHTML = ''; body.innerHTML = '';
+            if(format === 'json' || format === 'xlsx') {
+                let tr = document.createElement('tr');
+                let td = document.createElement('td');
+                td.className = "px-3 py-2 text-emerald-400";
+                td.innerText = `${format.toUpperCase()} Preview ready for download`;
+                tr.appendChild(td); head.appendChild(tr);
+                return;
+            }
+            const rows = content.split(/\r\n|\n/);
+            if(rows.length === 0) return;
+            const headers = rows[0].split(',');
+            let headTr = document.createElement('tr');
+            headers.forEach(h => {
+                let th = document.createElement('th');
+                th.className = "px-3 py-2 font-medium";
+                th.innerText = h.replace(/["']/g, '').trim();
+                headTr.appendChild(th);
+            });
+            head.appendChild(headTr);
+
+            for(let i = 1; i < Math.min(rows.length, 6); i++) {
+                let tr = document.createElement('tr');
+                let cols = rows[i].split(',');
+                cols.forEach(c => {
+                    let td = document.createElement('td');
+                    td.className = "px-3 py-2 truncate max-w-xs";
+                    td.innerText = c ? c.replace(/["']/g, '').trim() : "";
+                    tr.appendChild(td);
+                });
+                body.appendChild(tr);
+            }
+        }
+
+        function addHistoryEntry(modName, count) {
+            const box = document.getElementById('history-box');
+            if(historyLog.length === 0) box.innerHTML = '';
+            const timeStr = new Date().toLocaleTimeString();
+            historyLog.unshift(`[${timeStr}] ${modName} (${count} file)`);
+            if(historyLog.length > 5) historyLog.pop();
+            box.innerHTML = historyLog.map(item => `<div>${item}</div>`).join('');
+        }
+
+        function prepareDownload() {
+            const btn = document.getElementById('process-btn');
+            btn.innerText = processedResults.length > 1 ? "Download ZIP Archive" : "Download Sanitized File";
+            btn.className = "bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-medium transition shadow-lg shadow-emerald-600/25";
+            btn.onclick = downloadResult;
+        }
+
+        async function downloadResult() {
+            if(processedResults.length === 0) return;
+            const format = document.getElementById('opt-format').value;
+
+            if(processedResults.length === 1) {
+                const res = processedResults[0];
+                if(format === 'xlsx') {
+                    const ws = XLSX.utils.aoa_to_sheet(res.raw.split('\n').map(r => r.split(',')));
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "SanitizedFeed");
+                    XLSX.writeFile(wb, res.name);
+                } else {
+                    const mime = res.name.endsWith('.json') ? 'application/json;charset=utf-8;' : 'text/csv;charset=utf-8;';
+                    const blob = new Blob([res.content], { type: mime });
+                    triggerDownload(blob, res.name);
+                }
+            } else {
+                const zip = new JSZip();
+                processedResults.forEach(res => { zip.file(res.name, res.content); });
+                const content = await zip.generateAsync({ type: "blob" });
+                triggerDownload(content, "feed_sanitizer_batch.zip");
+            }
+        }
+
+        function triggerDownload(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
